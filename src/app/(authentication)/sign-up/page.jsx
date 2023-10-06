@@ -1,10 +1,11 @@
 'use client'
 import React, { useState } from 'react';
-import { Form, Input, Button, Space } from 'antd';
+import { Form, Input, Button, Space, Select, message } from 'antd';
 import {
     CheckCircleOutlined,
     CloseCircleOutlined,
 } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 
 const PasswordForm = () => {
     const [form] = Form.useForm();
@@ -15,6 +16,8 @@ const PasswordForm = () => {
         digits: null,
     });
     const [interacted, setInteracted] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const router = useRouter()
 
     // Custom password validation rules
     const validatePassword = (rule, value, callback) => {
@@ -60,9 +63,41 @@ const PasswordForm = () => {
         callback();
     };
 
+
     // Form submit handler
-    const onFinish = (values) => {
-        console.log('Received values:', values);
+    const handleSubmit = async (values) => {
+        setLoading(true)
+        try {
+            const payload = await form.validateFields(values)
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+            if (!response.ok) {
+                data.errors.forEach(error => {
+                    return message.error(error)
+                })
+            }
+
+            if (response.ok) {
+                console.log(data)
+                message.success("Successfully Sign up");
+                router.push('/sign-in')
+                form.resetFields()
+            }
+        }
+        catch (error) {
+            message.warning("Network Error")
+        }
+        finally {
+            setLoading(false)
+        }
+
     };
 
     const handleInputBlur = () => {
@@ -75,7 +110,6 @@ const PasswordForm = () => {
             <Form
                 form={form}
                 name="passwordForm"
-                onFinish={onFinish}
                 layout="vertical"
             >
                 <Form.Item
@@ -186,7 +220,7 @@ const PasswordForm = () => {
 
                 <Form.Item
                     label="Confirm New Password"
-                    name="confirm_password"
+                    name="password_confirmation"
                     required
                     rules={[
                         { required: true, message: "Confirm Password is required" },
@@ -213,13 +247,35 @@ const PasswordForm = () => {
                         placeholder="Confirm New Password"
                     />
                 </Form.Item>
-
+                <Form.Item
+                    label="Role"
+                    name="role"
+                    rules={[
+                        {
+                            required: true,
+                            message: 'Please select a Category',
+                        },
+                    ]}
+                >
+                    <Select onChange={(value) => { form.setFieldsValue({ ...form.getFieldsValue(), role: value }) }} options={[
+                        {
+                            value: 'student',
+                            Label: 'Student'
+                        },
+                        {
+                            value: 'facilitator',
+                            Label: 'Facilitator'
+                        }
+                    ]} />
+                </Form.Item>
                 <Form.Item>
                     <Button
                         className='bg-blue-900 font-bold text-center flex items-center border-[1px] justify-center w-full py-4'
                         size='large'
                         type="primary"
                         htmlType="submit"
+                        onClick={handleSubmit}
+                        loading={loading}
                     >
                         SIGN UP
                     </Button>

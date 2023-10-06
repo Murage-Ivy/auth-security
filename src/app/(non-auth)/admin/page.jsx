@@ -74,10 +74,10 @@ function Admin() {
     return (
         <>
             <Typography.Title level={2} className="p-4 text-center">
-                Facilitator    Dashboard
+                Admin Dashboard
             </Typography.Title>
             <Modal
-                title="Ask For Request"
+                title="Post a comment"
                 open={openModal}
                 onOk={() => {
                     handleSubmit()

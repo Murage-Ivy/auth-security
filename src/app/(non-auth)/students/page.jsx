@@ -2,10 +2,15 @@
 import DataDisplay from '@/components/data-display'
 import { Button, Form, Input, Select, Modal } from 'antd'
 import React, { useState } from 'react'
+import useSWR from 'swr'
+
 
 function Student() {
     const [openModal, setOpenModal] = useState(false)
     const [form] = Form.useForm()
+
+    const fetcher = (...args) => fetch(...args).then(res => res.json())
+    const { data, error, isLoading } = useSWR('/api/user', fetcher)
     const columns = [
         {
             title: "Request",

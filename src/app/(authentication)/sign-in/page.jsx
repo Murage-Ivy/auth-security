@@ -1,10 +1,11 @@
 'use client'
 import React, { useState } from 'react';
-import { Form, Input, Button, Space } from 'antd';
+import { Form, Input, Button, Space, message } from 'antd';
 import {
     CheckCircleOutlined,
     CloseCircleOutlined,
 } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 
 const PasswordForm = () => {
     const [form] = Form.useForm();
@@ -15,6 +16,8 @@ const PasswordForm = () => {
         digits: null,
     });
     const [interacted, setInteracted] = useState(false);
+    const [loading, setLoading] = useState(false)
+    const router = useRouter()
 
     // Custom password validation rules
     const validatePassword = (rule, value, callback) => {
@@ -61,8 +64,48 @@ const PasswordForm = () => {
     };
 
     // Form submit handler
-    const onFinish = (values) => {
-        console.log('Received values:', values);
+    const handleSubmit = async (values) => {
+        setLoading(true)
+        try {
+            const payload = await form.validateFields(values)
+            const response = await fetch("/api/login", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            // console.log(response)
+
+            const data = await response.json()
+            console.log(data)
+            if (!response.ok) {
+                return message.error(data.message)
+            }
+
+            if (response.ok) {
+                message.success("Successfully Log in");
+                form.resetFields()
+                switch (data?.message) {
+                    case 'admin':
+                        return router.push('/admin')
+                    case 'student':
+                        return router.push('/students')
+                    case 'facilitator':
+                        return router.push('/facilitators')
+                    default:
+                        return router.push('/sign-up')
+                }
+
+            }
+        }
+        catch (error) {
+            message.warning("Network error")
+        }
+        finally {
+            setLoading(false)
+        }
+
     };
 
     const handleInputBlur = () => {
@@ -75,7 +118,6 @@ const PasswordForm = () => {
             <Form
                 form={form}
                 name="passwordForm"
-                onFinish={onFinish}
                 layout="vertical"
             >
                 <Form.Item
@@ -191,6 +233,9 @@ const PasswordForm = () => {
                         size='large'
                         type="primary"
                         htmlType="submit"
+                        onClick={handleSubmit}
+                        loading={loading}
+
                     >
                         SIGN IN
                     </Button>
