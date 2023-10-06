@@ -1,8 +1,8 @@
 'use client'
-import { red, blue, purple, magenta, volcano } from "@ant-design/colors";
+import { blue } from "@ant-design/colors";
 import DataDisplay from '@/components/data-display'
 import { EditOutlined } from '@ant-design/icons'
-import { Button, Form, Input, Select, Modal, Tooltip, Typography } from 'antd'
+import { Button, Form, Input, Modal, Tooltip, Typography, message } from 'antd'
 import React, { useContext, useState } from 'react'
 import useSWR from 'swr'
 import UserContext from "@/utils/context/user-context";
@@ -14,7 +14,7 @@ function Facilitator() {
     const user = useContext(UserContext)
     const token = useContext(AuthContext)
     const [fRequests, setFrequests] = useState([])
-    console.log(user)
+    const [requestId, setRequestId] = useState('')
 
     const fetcher = (url) => fetch(url, {
         headers: {
@@ -24,9 +24,16 @@ function Facilitator() {
 
     const { data: requests, error, isLoading: requestLoads, mutate: getRequests } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, fetcher,
         {
-            onSuccess: (data) => {
-                console.log(data)
-                setFrequests(data.filter((request) => request.facilitator === user))
+            onSuccess: (requests) => {
+                setFrequests(() => {
+                    return requests.map((request, index) => {
+                        return {
+                            ...request,
+                            key: index
+                        }
+                    }).filter((request) => request.facilitator === user)
+                })
+
             }
         })
 
@@ -43,7 +50,7 @@ function Facilitator() {
         },
 
         {
-            title: "Request",
+            title: "Student",
             dataIndex: "user",
             sorter: {
                 compare: (a, b) => a.request.localeCompare(b.request),
@@ -57,52 +64,49 @@ function Facilitator() {
 
         {
             title: "",
-            dataIndex: "request",
-            render: (text) => {
+            dataIndex: "id",
+            render: (id) => {
+                console.log(id)
                 return <Tooltip>
                     <Button
                         type='text'
                         shape='circle'
                         icon={<EditOutlined twoToneColor={blue.primary} />}
-                        onClick={() => setOpenModal(true)} />
+                        onClick={() => {
+                            setOpenModal(true)
+                            setRequestId(id)
+                        }} />
 
                 </Tooltip>
             }
         },
     ]
-
-    const dataSource = [
-        {
-            key: 1,
-            request: "Request 1",
-            student: "Student 1"
-        },
-        {
-            key: 2,
-            request: "Request 2",
-            student: "Student 2"
-        },
-        {
-            key: 3,
-            request: "Request 3",
-            student: "Student 3"
-        },
-        {
-            key: 4,
-            request: "Request 4",
-            student: "Student 4"
-        },
-
-
-    ]
-
-    const handleChange = (value) => {
-        console.log(`selected ${value}`);
-    };
-
-    const handleSubmit = async () => {
+    const handleSubmit = async (requestId) => {
         const values = await form.validateFields();
-        console.log(values);
+        const payload = {
+            ...values,
+            request_id: requestId
+        }
+        console.log(payload)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/feedbacks`, {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+            console.log(data)
+            setOpenModal(false)
+            form.resetFields()
+            message.success('Feedback Sent')
+            getRequests() // to update the data in the data display table
+        }
+
         setOpenModal(false)
         form.resetFields()
     }
@@ -116,7 +120,7 @@ function Facilitator() {
                 title="Ask For Request"
                 open={openModal}
                 onOk={() => {
-                    handleSubmit()
+                    handleSubmit(requestId)
                 }}
                 okText="Post Feedback"
                 onCancel={() => {
@@ -126,7 +130,7 @@ function Facilitator() {
             >
                 <Form
                     form={form}
-                    name='student-form'
+                    name='feedback-form'
                     layout='vertical'
                     onFinish={(values) => {
                         console.log(values)
@@ -134,7 +138,7 @@ function Facilitator() {
                         setOpenModal(false)
                     }}
                 >
-                    <Form.Item label="Feedback" name="request" rules={[
+                    <Form.Item label="Feedback" name="content" rules={[
                         {
                             required: true,
                             message: 'Request Required',
@@ -145,10 +149,15 @@ function Facilitator() {
                 </Form>
             </Modal >
             <div className=" p-3 h-screen w-full border-2 max-w-[90%] m-auto py-4">
-                <DataDisplay columns={columns} dataSource={fRequests || []} expandable={{
-                    expandedRowRender: (record) => <p style={{ margin: 0 }}>{record.description}</p>,
-                    rowExpandable: (record) => record.name !== 'Not Expandable',
-                }} />
+                <DataDisplay columns={columns} dataSource={fRequests || []} rowKey={(record) => record.id}
+                    expandable={{
+                        expandedRowRender: (record) => {
+                            return record?.feedbacks?.map(feedback => {
+                                return <p key={feedback.id}>{feedback.content || "No feedback"}</p>
+                            })
+                        },
+                        rowExpandable: (record) => true,
+                    }} />
             </div>
 
         </>)

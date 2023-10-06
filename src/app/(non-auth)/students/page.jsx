@@ -1,6 +1,7 @@
 'use client'
 import DataDisplay from '@/components/data-display'
 import AuthContext from '@/utils/context/auth-context'
+import UserContext from '@/utils/context/user-context'
 import { Button, Form, Input, Select, Modal, message } from 'antd'
 import React, { useContext, useState } from 'react'
 import useSWR from 'swr'
@@ -10,6 +11,10 @@ function Student() {
     const [openModal, setOpenModal] = useState(false)
     const [form] = Form.useForm()
     const token = useContext(AuthContext)
+    const [sRequests, setSResquests] = useState([])
+    const user = useContext(UserContext)
+
+
 
 
     const fetcher = (url) => fetch(url, {
@@ -19,7 +24,18 @@ function Student() {
     }).then(res => res.json())
 
     const { data, error: facilitatorError, isLoading } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/facilitator`, fetcher)
-    const { data: requests, error, isLoading: requestLoads, mutate: getRequests } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, fetcher)
+    const { data: requests, error, isLoading: requestLoads, mutate: getRequests } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, fetcher, {
+        onSuccess: (requests) => {
+            setSResquests(() => {
+                return requests.map((request, index) => {
+                    return {
+                        ...request,
+                        key: index
+                    }
+                }).filter((request) => request.user?.email === user)
+            })
+        },
+    })
 
     console.log(requests)
     const columns = [
@@ -46,9 +62,6 @@ function Student() {
     ]
 
 
-    const handleChange = (value) => {
-        console.log(`selected ${value}`);
-    };
 
     const handleSubmit = async () => {
         try {
@@ -142,9 +155,14 @@ function Student() {
                     </Form.Item>
                 </Form>
             </Modal >
-            <DataDisplay columns={columns} dataSource={requests} expandable={{
-                expandedRowRender: (record) => <p style={{ margin: 0 }}>Feedback:{record.description || "No feedback"} </p>,
-                rowExpandable: (record) => record.name !== 'Not Expandable',
+            <DataDisplay columns={columns} dataSource={sRequests || []} expandable={{
+                expandedRowRender: (record) => {
+                    return record?.feedbacks?.map(feedback => {
+                        return <p key={feedback.id}><strong>Feedback:
+                        </strong>{feedback.content || "No feedback"}</p>
+                    })
+                },
+                rowExpandable: (record) => true,
             }} />
         </>)
 }
