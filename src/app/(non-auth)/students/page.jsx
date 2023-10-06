@@ -1,16 +1,27 @@
 'use client'
 import DataDisplay from '@/components/data-display'
-import { Button, Form, Input, Select, Modal } from 'antd'
-import React, { useState } from 'react'
+import AuthContext from '@/utils/context/auth-context'
+import { Button, Form, Input, Select, Modal, message } from 'antd'
+import React, { useContext, useState } from 'react'
 import useSWR from 'swr'
 
 
 function Student() {
     const [openModal, setOpenModal] = useState(false)
     const [form] = Form.useForm()
+    const token = useContext(AuthContext)
 
-    const fetcher = (...args) => fetch(...args).then(res => res.json())
-    const { data, error, isLoading } = useSWR('/api/user', fetcher)
+
+    const fetcher = (url) => fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    }).then(res => res.json())
+
+    const { data, error: facilitatorError, isLoading } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/facilitator`, fetcher)
+    const { data: requests, error, isLoading: requestLoads, mutate: getRequests } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, fetcher)
+
+    console.log(requests)
     const columns = [
         {
             title: "Request",
@@ -28,44 +39,48 @@ function Student() {
                 compare: (a, b) => a.facilitator.localeCompare(b.facilitator),
                 multiple: 2,
             },
-            render: (text) => text || "-".repeat(15),
+            render: (facilitator) => {
+                return facilitator || "-".repeat(15)
+            },
         }
     ]
 
-    const dataSource = [
-        {
-            key: 1,
-            request: "Request 1",
-            facilitator: "Facilitator 1"
-        },
-        {
-            key: 2,
-            request: "Request 2",
-            facilitator: "Facilitator 2"
-        },
-        {
-            key: 3,
-            request: "Request 3",
-            facilitator: "Facilitator 3"
-        },
-        {
-            key: 4,
-            request: "Request 4",
-            facilitator: "Facilitator 4"
-        },
-
-
-    ]
 
     const handleChange = (value) => {
         console.log(`selected ${value}`);
     };
 
     const handleSubmit = async () => {
-        const values = await form.validateFields();
-        console.log(values);
-        setOpenModal(false)
-        form.resetFields()
+        try {
+            const values = await form.validateFields();
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(values)
+            })
+            const data = await response.json()
+
+            if (response.ok) {
+                console.log(data)
+                setOpenModal(false)
+                form.resetFields()
+                message.success('Request Sent')
+                getRequests() // to update the data in the data display table
+            }
+            if (!response.ok) {
+                data?.errors?.map(error => message.error(error))
+
+            }
+        }
+        catch (error) {
+            message.error(error.message)
+        }
+
+
+
     }
 
     return (
@@ -96,37 +111,25 @@ function Student() {
                         setOpenModal(false)
                     }}
                 >
-                    <Form.Item label="Choose Facilitator" name="facilitator" rules={[
+                    <Form.Item label="Choose Facilitator" name="facilitator_id" rules={[
                         {
                             required: true,
                             message: 'Facilitator Required',
                         },
                     ]}>
                         <Select
+                            loading={isLoading}
                             placeholder="Select Facilitator"
                             style={{
                                 width: '100%',
                             }}
-                            onChange={(value) => { form.setFieldValue({ ...form.getFieldsValue(), facilitator: value }) }}
-                            options={[
-                                {
-                                    value: 'jack',
-                                    label: 'Jack',
-                                },
-                                {
-                                    value: 'lucy',
-                                    label: 'Lucy',
-                                },
-                                {
-                                    value: 'Yiminghe',
-                                    label: 'yiminghe',
-                                },
-                                {
-                                    value: 'disabled',
-                                    label: 'Disabled',
-                                    disabled: true,
-                                },
-                            ]}
+                            onChange={(value) => { form.setFieldValue({ ...form.getFieldsValue(), facilitator_id: value }) }}
+                            options={data?.map(facilitator => {
+                                return {
+                                    label: facilitator?.email,
+                                    value: facilitator?.id
+                                }
+                            }) || []}
                         />
                     </Form.Item>
                     <Form.Item label="Enter Request" name="request" rules={[
@@ -139,8 +142,8 @@ function Student() {
                     </Form.Item>
                 </Form>
             </Modal >
-            <DataDisplay columns={columns} dataSource={dataSource} expandable={{
-                expandedRowRender: (record) => <p style={{ margin: 0 }}>{record.description}</p>,
+            <DataDisplay columns={columns} dataSource={requests} expandable={{
+                expandedRowRender: (record) => <p style={{ margin: 0 }}>Feedback:{record.description || "No feedback"} </p>,
                 rowExpandable: (record) => record.name !== 'Not Expandable',
             }} />
         </>)
