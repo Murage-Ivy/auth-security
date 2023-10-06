@@ -1,11 +1,13 @@
 "use client";
 import AuthContext from "@/utils/context/auth-context";
+import UserContext from "@/utils/context/user-context";
 import { Button, Modal, Spin } from "antd";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Main({ children }) {
   const [isAuthorised, setIsAuthorised] = useState(false);
+  const [user, setUser] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const [modalIsOpen, setModalOpen] = useState(false);
@@ -21,7 +23,9 @@ export default function Main({ children }) {
 
         if (response.ok) {
           const data = await response.json();
-          setIsAuthorised(data.message);
+          console.log(data)
+          setIsAuthorised(data?.message?.access_token);
+          setUser(data?.message?.email);
         }
       } catch (error) {
         console.error(error);
@@ -88,7 +92,7 @@ export default function Main({ children }) {
 
       {!loading && isAuthorised && (
         <AuthContext.Provider value={isAuthorised}>
-          {children}
+          <UserContext.Provider value={user}>{children}</UserContext.Provider>
         </AuthContext.Provider>
       )}
     </div>

@@ -3,11 +3,34 @@ import { red, blue, purple, magenta, volcano } from "@ant-design/colors";
 import DataDisplay from '@/components/data-display'
 import { EditOutlined } from '@ant-design/icons'
 import { Button, Form, Input, Select, Modal, Tooltip, Typography } from 'antd'
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
+import useSWR from 'swr'
+import UserContext from "@/utils/context/user-context";
+import AuthContext from "@/utils/context/auth-context";
 
 function Facilitator() {
     const [openModal, setOpenModal] = useState(false)
     const [form] = Form.useForm()
+    const user = useContext(UserContext)
+    const token = useContext(AuthContext)
+    const [fRequests, setFrequests] = useState([])
+    console.log(user)
+
+    const fetcher = (url) => fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    }).then(res => res.json())
+
+    const { data: requests, error, isLoading: requestLoads, mutate: getRequests } = useSWR(`${process.env.NEXT_PUBLIC_API_BASE_URL}/requests`, fetcher,
+        {
+            onSuccess: (data) => {
+                console.log(data)
+                setFrequests(data.filter((request) => request.facilitator === user))
+            }
+        })
+
+
     const columns = [
         {
             title: "Request",
@@ -17,6 +40,19 @@ function Facilitator() {
                 multiple: 2,
             },
             render: (text) => text || "-".repeat(15),
+        },
+
+        {
+            title: "Request",
+            dataIndex: "user",
+            sorter: {
+                compare: (a, b) => a.request.localeCompare(b.request),
+                multiple: 2,
+            },
+            render: (user) => {
+                return user?.email || "-".repeat(15)
+
+            }
         },
 
         {
@@ -109,7 +145,7 @@ function Facilitator() {
                 </Form>
             </Modal >
             <div className=" p-3 h-screen w-full border-2 max-w-[90%] m-auto py-4">
-                <DataDisplay columns={columns} dataSource={dataSource} expandable={{
+                <DataDisplay columns={columns} dataSource={fRequests || []} expandable={{
                     expandedRowRender: (record) => <p style={{ margin: 0 }}>{record.description}</p>,
                     rowExpandable: (record) => record.name !== 'Not Expandable',
                 }} />

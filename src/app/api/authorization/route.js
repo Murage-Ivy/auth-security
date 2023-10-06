@@ -5,9 +5,12 @@ export async function POST(request) {
   try {
     const id = request.cookies.get("session_id");
     if (id) {
-      const [{ access_token }] = await selectToken(id);
+      const [{ access_token, email }] = await selectToken(id);
       return NextResponse.json(
-        { success: true, message:access_token },
+        {
+          success: true,
+          message: { access_token: access_token, email: email },
+        },
         {
           status: 200,
         }

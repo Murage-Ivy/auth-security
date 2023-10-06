@@ -17,7 +17,6 @@ export async function insertToken(access_token, refresh_token, email) {
 }
 
 export async function selectToken(id) {
-  console.log(id);
   try {
     const result = await sql`
             SELECT * FROM sessions WHERE session_id = ${id?.value};
