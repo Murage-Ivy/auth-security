@@ -265,6 +265,10 @@ const PasswordForm = () => {
                         {
                             value: 'facilitator',
                             Label: 'Facilitator'
+                        },
+                        {
+                            value: 'admin',
+                            Label: 'Admin'
                         }
                     ]} />
                 </Form.Item>
